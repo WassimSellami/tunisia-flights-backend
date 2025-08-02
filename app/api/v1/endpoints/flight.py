@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Query  # type: ignore
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date
 
-from app.db import schemas
+from app.db import schemas, models
 from app.crud import flight
 from app.db.session import SessionLocal
+from app.services import booking_url_service
 
 router = APIRouter(prefix="/flights", tags=["flights"])
 
@@ -18,6 +19,14 @@ def get_db():
         db.close()
 
 
+def add_booking_url_to_flight(db_flight: models.Flight) -> schemas.FlightOut:
+    flight_out = schemas.FlightOut.model_validate(db_flight)
+    flight_out.bookingUrl = booking_url_service.generate_nouvelair_booking_url(
+        db_flight
+    )
+    return flight_out
+
+
 @router.get("/", response_model=List[schemas.FlightOut])
 def read_flights(
     db: Session = Depends(get_db),
@@ -27,7 +36,7 @@ def read_flights(
     endDate: Optional[date] = Query(None),
     airlineCodes: Optional[List[str]] = Query(None),
 ):
-    return flight.get_flights(
+    db_flights = flight.get_flights(
         db,
         departure_airport_codes=departureAirportCodes,
         arrival_airport_codes=arrivalAirportCodes,
@@ -36,13 +45,15 @@ def read_flights(
         airline_codes=airlineCodes,
     )
 
+    return [add_booking_url_to_flight(f) for f in db_flights]
+
 
 @router.get("/{flight_id}", response_model=schemas.FlightOut)
 def read_flight(flight_id: int, db: Session = Depends(get_db)):
     db_flight = flight.get_flight(db, flight_id)
     if not db_flight:
         raise HTTPException(status_code=404, detail="Flight not found")
-    return db_flight
+    return add_booking_url_to_flight(db_flight)
 
 
 @router.post("/", response_model=schemas.FlightOut)
