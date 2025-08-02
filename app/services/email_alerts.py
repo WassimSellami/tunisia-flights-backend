@@ -1,9 +1,6 @@
 from sqlalchemy.orm import Session
 from app.crud import subscription as crud_subscription, flight
-from app.db import (
-    schemas,
-    models,
-)
+from app.db import schemas
 import smtplib
 from datetime import datetime
 from email.message import EmailMessage
@@ -43,7 +40,7 @@ def send_price_alert_email(
         f"📅 Departure Date: {departure_date}\n"
         f"🎯 Your Target Price: {target_price}€\n"
         f"💰 Current Price: {current_price}€\n"
-        f"📩 Note: You will no longer receive alerts for this flight unless you update your target price.\n\n"
+        f"📩 Note: You will no longer receive alerts for this flight unless you reactivate it.\n\n"
         f"Happy travels! 🧳\n"
     )
 

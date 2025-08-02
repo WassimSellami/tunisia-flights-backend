@@ -8,8 +8,6 @@ from seleniumwire import webdriver
 from selenium.webdriver.chrome.options import Options
 import warnings
 
-from app.services.email_alerts import send_price_alert_email
-
 warnings.filterwarnings("ignore", category=UserWarning, module="seleniumwire")
 
 
