@@ -30,6 +30,12 @@ def read_price_history_by_id(record_id: int, db: Session = Depends(get_db)):
     return record
 
 
+@router.get("/flight/{flight_id}/min-max", response_model=schemas.FlightMinMaxPrice)
+def get_min_max_flight_price(flight_id: int, db: Session = Depends(get_db)):
+    min_max_prices = flight_price_history.get_min_max_price_for_flight(db, flight_id)
+    return min_max_prices
+
+
 @router.post("/", response_model=schemas.FlightPriceHistoryOut)
 def create_price_history(
     price: schemas.FlightPriceHistoryCreate, db: Session = Depends(get_db)

@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -17,3 +18,9 @@ class FlightPriceHistoryCreate(FlightPriceHistoryBase):
 
 class FlightPriceHistoryOut(FlightPriceHistoryBase):
     id: int
+
+
+class FlightMinMaxPrice(BaseModel):
+    minPrice: Optional[int] = None
+    maxPrice: Optional[int] = None
+    flightId: int
