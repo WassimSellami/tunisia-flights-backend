@@ -1,9 +1,9 @@
 import os
+import logging
 from sqlalchemy import text
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
-
 from app.api.v1.endpoints import (
     airline,
     flight,
@@ -12,16 +12,14 @@ from app.api.v1.endpoints import (
     airport,
     user,
 )
-
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.services.fetch_flights import (
-    fetch_and_store_flights,
-)
-from app.services.email_alerts import (
-    check_and_send_alerts_for_flights,
-)
+from app.services.fetch_flights import fetch_and_store_flights
+from app.services.email_alerts import check_and_send_alerts_for_flights
 from app.db.session import SessionLocal
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logging.getLogger("seleniumwire").setLevel(logging.WARNING)
 
 scheduler = BackgroundScheduler()
 
@@ -30,26 +28,24 @@ def scheduled_job():
     db = SessionLocal()
     try:
         db.execute(text("SELECT 1"))
-        print("🚀 Running scheduled flight fetch job...")
+        logger.info("🚀 Running scheduled flight fetch job...")
         updateFlights = fetch_and_store_flights(db)
-        print("✅ Flight fetch complete.")
-
+        logger.info("✅ Flight fetch complete.")
         check_and_send_alerts_for_flights(db, updateFlights)
-
     except Exception as e:
-        print(f"❌ Scheduled job failed: {e}")
+        logger.error(f"❌ Scheduled job failed: {e}")
     finally:
         db.close()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scheduler.add_job(scheduled_job, "cron", minute=50)
+    scheduler.add_job(scheduled_job, "cron", minute=16)
     scheduler.start()
-    print("✅ Scheduler started.")
+    logger.info("✅ Scheduler started.")
     yield
     scheduler.shutdown()
-    print("🛑 Scheduler shut down.")
+    logger.info("🛑 Scheduler shut down.")
 
 
 app = FastAPI(lifespan=lifespan)
