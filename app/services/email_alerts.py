@@ -71,6 +71,10 @@ def send_price_alert_email(
     </html>
     """
 
+    plain_text_book_now_link = ""
+    if booking_url:
+        plain_text_book_now_link = f"Book Now: {booking_url}\n"
+
     plain_text_body = (
         f"Good news! 🎉\n\n"
         f"The flight you were watching has dropped below your target price.\n\n"
@@ -78,7 +82,7 @@ def send_price_alert_email(
         f"📅 Departure Date: {departure_date}\n"
         f"🎯 Your Target Price: {target_price}€\n"
         f"💰 Current Price: {current_price}€\n"
-        f"{'Book Now: ' + booking_url + '\n' if booking_url else ''}"
+        f"{plain_text_book_now_link}"
         f"📩 Note: You will no longer receive alerts for this flight unless you reactivate it.\n\n"
         f"Happy travels! 🧳\n"
     )
@@ -92,7 +96,7 @@ def send_price_alert_email(
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-            smtp.login(EMAIL_USER, EMAIL_PASS)  # type: ignore
+            smtp.login(EMAIL_USER, EMAIL_PASS)
             smtp.send_message(msg)
         logger.info(f"Email sent to {to_email}")
     except Exception as e:
@@ -123,19 +127,19 @@ def check_and_send_alerts_for_flights(db: Session, updated_flights_info: list):
             if (old_price > target_price) and (updated_price <= target_price):
                 logger.info(f"ALERT TRIGGERED for {sub.email} on Flight {db_flight.id}")
                 send_price_alert_email(
-                    to_email=sub.email,  # type: ignore
+                    to_email=sub.email,
                     flight_details={
                         "originAirportCode": db_flight.departureAirportCode,
                         "arrivalAirportCode": db_flight.arrivalAirportCode,
                         "departureDate": db_flight.departureDate.isoformat(),
                         "bookingUrl": booking_url,
                     },
-                    target_price=target_price,  # type: ignore
+                    target_price=target_price,
                     current_price=updated_price,
                 )
 
                 sub_update_schema = schemas.SubscriptionUpdate(isActive=False)
-                crud_subscription.update_subscription(db, sub.id, sub_update_schema)  # type: ignore
+                crud_subscription.update_subscription(db, sub.id, sub_update_schema)
                 logger.info(f"Subscription {sub.id} set to inactive after alert.")
             else:
                 logger.debug(
