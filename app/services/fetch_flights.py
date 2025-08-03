@@ -1,5 +1,5 @@
 from datetime import datetime
-from app.crud import flight, flight_price_history
+from app.crud import flight, flight_price_history, airport
 from app.db import schemas, models
 from sqlalchemy.orm import Session
 import requests
@@ -7,6 +7,7 @@ import time
 from seleniumwire import webdriver
 from selenium.webdriver.chrome.options import Options
 import warnings
+from itertools import product  # Import product for combinations
 
 warnings.filterwarnings("ignore", category=UserWarning, module="seleniumwire")
 
@@ -16,13 +17,6 @@ NOUVELAIR_URL = "https://www.nouvelair.com/"
 CURRENCY = 2  # EUR
 AIRLINE_CODE = "BJ"
 API_KEY = None
-
-ROUTES = [
-    ("MUC", "TUN"),
-    ("TUN", "MUC"),
-    ("MUC", "MIR"),
-    ("MIR", "MUC"),
-]
 
 
 def capture_api_key():
@@ -91,11 +85,29 @@ def fetch_and_store_flights(db: Session):
         print("Cannot proceed without API key.")
         return []
 
+    all_airports = airport.get_airports(db)
+    tunisian_airports = [
+        a.code for a in all_airports if getattr(a, "country", None) == "TN"
+    ]
+    german_airports = [
+        a.code for a in all_airports if getattr(a, "country", None) == "DE"
+    ]
+
+    dynamic_routes = []
+    for tn_airport_code, de_airport_code in product(tunisian_airports, german_airports):
+        dynamic_routes.append((tn_airport_code, de_airport_code))
+    for de_airport_code, tn_airport_code in product(german_airports, tunisian_airports):
+        dynamic_routes.append((de_airport_code, tn_airport_code))
+
+    if not dynamic_routes:
+        print("No dynamic routes generated. Ensure TN and DE airports exist in DB.")
+        return []
+
     processed_flights_info = []
     new_flights_count = 0
     updated_prices_count = 0
 
-    for departure_airport, arrival_airport in ROUTES:
+    for departure_airport, arrival_airport in dynamic_routes:
         print(f"Fetching flights from {departure_airport} to {arrival_airport}...")
 
         flights = get_nouvelair_flight_availability(
@@ -176,3 +188,16 @@ def fetch_and_store_flights(db: Session):
         f"\nSummary: {new_flights_count} new flights added, {updated_prices_count} prices updated.\n"
     )
     return processed_flights_info
+
+
+# Example of how you would run this (e.g., from a management script or a Fastapi background task)
+# if __name__ == "__main__":
+#     from app.db.session import SessionLocal # Import SessionLocal here
+#     db = SessionLocal()
+#     try:
+#         print("Starting flight data fetch...")
+#         fetched_data = fetch_and_store_flights(db)
+#         print("Flight data fetch completed.")
+#         # You can then use fetched_data to trigger alerts if this script is also part of your alert mechanism
+#     finally:
+#         db.close()
