@@ -31,15 +31,15 @@ def send_price_alert_email(
     to_email: str, flight_details: dict, target_price: float, current_price: float
 ):
     raw_date = flight_details.get("departureDate")
-    day_format = "%#d" if platform.system() == "Windows" else "%-d"
+    day_format_specifier = "%#d" if platform.system() == "Windows" else "%-d"
 
     try:
         if isinstance(raw_date, datetime):
-            departure_date = raw_date.strftime(f"{day_format} %b %Y")
+            date_format = f"{day_format_specifier} %b %Y"
+            departure_date = raw_date.strftime(date_format)
         else:
-            departure_date = datetime.fromisoformat(str(raw_date)).strftime(
-                f"{day_format} %b %Y"
-            )
+            date_format = f"{day_format_specifier} %b %Y"
+            departure_date = datetime.fromisoformat(str(raw_date)).strftime(date_format)
     except Exception as e:
         logger.warning(f"Failed to parse departure date: {e}")
         departure_date = raw_date
@@ -47,6 +47,10 @@ def send_price_alert_email(
     booking_url = flight_details.get("bookingUrl")
 
     subject = "✈️ Flight Price Alert"
+
+    link_html = ""
+    if booking_url:
+        link_html = f"<p><a href='{booking_url}' style='display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;'>Book Now! ✈️</a></p>"
 
     html_body = f"""
     <html>
@@ -60,7 +64,7 @@ def send_price_alert_email(
             <strong>🎯 Your Target Price:</strong> {target_price}€<br>
             <strong>💰 Current Price:</strong> {current_price}€
         </p>
-        {"<p><a href='" + booking_url + "' style='display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;'>Book Now! ✈️</a></p>" if booking_url else ""}
+        {link_html}
         <p><i>Note: You will no longer receive alerts for this flight unless you reactivate it.</i></p>
         <p>Happy travels! 🧳</p>
     </body>
@@ -113,8 +117,8 @@ def check_and_send_alerts_for_flights(db: Session, updated_flights_info: list):
         booking_url = booking_url_service.generate_nouvelair_booking_url(db_flight)
 
         for sub in subscriptions:
-            target_price = sub.targetPrice  # type: ignore
-            updated_price = db_flight.price  # type: ignore
+            target_price = sub.targetPrice
+            updated_price = db_flight.price
 
             if (old_price > target_price) and (updated_price <= target_price):
                 logger.info(f"ALERT TRIGGERED for {sub.email} on Flight {db_flight.id}")
