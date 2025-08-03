@@ -172,7 +172,7 @@ def fetch_and_store_flights(db: Session):
                 db_flight = flight.create_flight(db, flight_data)
 
                 price_history_data = schemas.FlightPriceHistoryCreate(
-                    flightId=db_flight.id,
+                    flightId=db_flight.id,  # type: ignore
                     price=price,
                     timestamp=now,
                 )
@@ -185,13 +185,13 @@ def fetch_and_store_flights(db: Session):
 
             else:
                 old_price = existing_flight.price
-                if old_price != price:
-                    existing_flight.price = price
+                if old_price != price:  # type: ignore
+                    existing_flight.price = price  # type: ignore
                     db.commit()
                     db.refresh(existing_flight)
 
                     price_history_data = schemas.FlightPriceHistoryCreate(
-                        flightId=existing_flight.id,
+                        flightId=existing_flight.id,  # type: ignore
                         price=price,
                         timestamp=now,
                     )
