@@ -31,8 +31,11 @@ def capture_api_key():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
+        key_found_and_ready_to_exit = False
+
         def handle_request(request):
             nonlocal captured_key
+            nonlocal key_found_and_ready_to_exit
             if (
                 captured_key is None
                 and "webapi.nouvelair.com/api" in request.url
@@ -40,19 +43,24 @@ def capture_api_key():
             ):
                 captured_key = request.headers["x-api-key"]
                 logger.info(f"API Key captured: {captured_key[:5]}...")
+                key_found_and_ready_to_exit = True
 
         page.on("request", handle_request)
 
         try:
-            page.goto(NOUVELAIR_URL, wait_until="networkidle")
-            time.sleep(
-                5
-            )  # Give it a bit more time for all requests to fire and ensure key is caught
+            page.goto(NOUVELAIR_URL, wait_until="domcontentloaded", timeout=45000)
+
+            start_time = time.time()
+            while not key_found_and_ready_to_exit and (time.time() - start_time < 30):
+                page.wait_for_timeout(1000)
 
             if captured_key:
-                API_KEY = captured_key  # Assign to global API_KEY once confirmed
+                API_KEY = captured_key
+                logger.info("Playwright session completed, API Key secured.")
             else:
-                logger.error("API Key not found in captured requests.")
+                logger.error(
+                    "API Key not found in captured requests within allowed time."
+                )
 
         except Exception as e:
             logger.error(f"Error during Playwright API key capture: {e}")
@@ -164,7 +172,7 @@ def fetch_and_store_flights(db: Session):
                 db_flight = flight.create_flight(db, flight_data)
 
                 price_history_data = schemas.FlightPriceHistoryCreate(
-                    flightId=db_flight.id,  # type: ignore
+                    flightId=db_flight.id,
                     price=price,
                     timestamp=now,
                 )
@@ -177,13 +185,13 @@ def fetch_and_store_flights(db: Session):
 
             else:
                 old_price = existing_flight.price
-                if old_price != price:  # type: ignore
-                    existing_flight.price = price  # type: ignore
+                if old_price != price:
+                    existing_flight.price = price
                     db.commit()
                     db.refresh(existing_flight)
 
                     price_history_data = schemas.FlightPriceHistoryCreate(
-                        flightId=existing_flight.id,  # type: ignore
+                        flightId=existing_flight.id,
                         price=price,
                         timestamp=now,
                     )
