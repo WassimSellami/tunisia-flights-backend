@@ -20,12 +20,6 @@ API_KEY = None
 
 def capture_api_key():
     global API_KEY
-    if API_KEY:
-        logger.info(
-            "API Key already captured (from previous job run), skipping re-capture."
-        )
-        return
-
     captured_key = None
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
