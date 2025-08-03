@@ -5,8 +5,7 @@ psycopg2-binary
 python-dotenv
 apscheduler
 requests
-selenium
-selenium-wire
+playwright
 email-validator
 setuptools
 blinker==1.7.0

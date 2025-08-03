@@ -1,19 +1,15 @@
 import time
 import logging
 import requests
-import warnings
 from itertools import product
 from datetime import datetime
-from seleniumwire import webdriver
-from selenium.webdriver.chrome.options import Options
+from playwright.sync_api import sync_playwright
 from sqlalchemy.orm import Session
 from app.crud import flight, flight_price_history, airport
 from app.db import schemas, models
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-warnings.filterwarnings("ignore", category=UserWarning, module="seleniumwire")
 
 NOUVELAIR_AVAILABILITY_API = "https://webapi.nouvelair.com/api/reservation/availability"
 NOUVELAIR_URL = "https://www.nouvelair.com/"
@@ -24,34 +20,44 @@ API_KEY = None
 
 def capture_api_key():
     global API_KEY
-    options = {"disable_encoding": True}
+    if API_KEY:
+        logger.info(
+            "API Key already captured (from previous job run), skipping re-capture."
+        )
+        return
 
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+    captured_key = None
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
 
-    driver = webdriver.Chrome(seleniumwire_options=options, options=chrome_options)
-
-    try:
-        driver.get(NOUVELAIR_URL)
-        time.sleep(10)
-
-        for request in driver.requests:
+        def handle_request(request):
+            nonlocal captured_key
             if (
-                request.response
+                captured_key is None
                 and "webapi.nouvelair.com/api" in request.url
-                and request.headers.get("x-api-key")
+                and "x-api-key" in request.headers
             ):
-                API_KEY = request.headers["x-api-key"]
-                logger.info("API Key captured.")
-                break
+                captured_key = request.headers["x-api-key"]
+                logger.info(f"API Key captured: {captured_key[:5]}...")
 
-        if not API_KEY:
-            logger.error("API Key not found in captured requests.")
-    finally:
-        driver.quit()
+        page.on("request", handle_request)
+
+        try:
+            page.goto(NOUVELAIR_URL, wait_until="networkidle")
+            time.sleep(
+                5
+            )  # Give it a bit more time for all requests to fire and ensure key is caught
+
+            if captured_key:
+                API_KEY = captured_key  # Assign to global API_KEY once confirmed
+            else:
+                logger.error("API Key not found in captured requests.")
+
+        except Exception as e:
+            logger.error(f"Error during Playwright API key capture: {e}")
+        finally:
+            browser.close()
 
 
 def get_nouvelair_flight_availability(
