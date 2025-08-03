@@ -16,7 +16,6 @@ from app.db.session import (
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-# Dependency to get a DB session
 def get_db():
     db = SessionLocal()
     try:

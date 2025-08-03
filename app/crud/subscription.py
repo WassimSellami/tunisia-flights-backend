@@ -77,7 +77,6 @@ def update_subscription(
         and update_data["targetPrice"] != db_subscription.targetPrice
     ):
         db_subscription.isActive = True  # type: ignore
-        print(f"Subscription {subscription_id} reactivated due to targetPrice update.")
     if "isActive" in update_data:
         db_subscription.isActive = update_data["isActive"]
 

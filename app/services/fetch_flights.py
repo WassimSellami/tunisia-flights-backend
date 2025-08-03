@@ -1,20 +1,23 @@
-from datetime import datetime
-from app.crud import flight, flight_price_history, airport
-from app.db import schemas, models
-from sqlalchemy.orm import Session
-import requests
 import time
+import logging
+import requests
+import warnings
+from itertools import product
+from datetime import datetime
 from seleniumwire import webdriver
 from selenium.webdriver.chrome.options import Options
-import warnings
-from itertools import product  # Import product for combinations
+from sqlalchemy.orm import Session
+from app.crud import flight, flight_price_history, airport
+from app.db import schemas, models
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 warnings.filterwarnings("ignore", category=UserWarning, module="seleniumwire")
 
-
 NOUVELAIR_AVAILABILITY_API = "https://webapi.nouvelair.com/api/reservation/availability"
 NOUVELAIR_URL = "https://www.nouvelair.com/"
-CURRENCY = 2  # EUR
+CURRENCY = 2
 AIRLINE_CODE = "BJ"
 API_KEY = None
 
@@ -42,11 +45,11 @@ def capture_api_key():
                 and request.headers.get("x-api-key")
             ):
                 API_KEY = request.headers["x-api-key"]
-                print("API Key captured:", API_KEY)
+                logger.info("API Key captured.")
                 break
 
         if not API_KEY:
-            print("API Key not found in captured requests.")
+            logger.error("API Key not found in captured requests.")
     finally:
         driver.quit()
 
@@ -73,16 +76,16 @@ def get_nouvelair_flight_availability(
         res.raise_for_status()
         return res.json().get("data", [])
     except Exception as e:
-        print("Error:", e)
+        logger.error(f"Error fetching availability: {e}")
         return []
 
 
 def fetch_and_store_flights(db: Session):
     global API_KEY
-    print("Capturing API key...")
+    logger.info("Capturing API key...")
     capture_api_key()
     if API_KEY is None:
-        print("Cannot proceed without API key.")
+        logger.error("Cannot proceed without API key.")
         return []
 
     all_airports = airport.get_airports(db)
@@ -100,7 +103,9 @@ def fetch_and_store_flights(db: Session):
         dynamic_routes.append((de_airport_code, tn_airport_code))
 
     if not dynamic_routes:
-        print("No dynamic routes generated. Ensure TN and DE airports exist in DB.")
+        logger.warning(
+            "No dynamic routes generated. Ensure TN and DE airports exist in DB."
+        )
         return []
 
     processed_flights_info = []
@@ -108,7 +113,9 @@ def fetch_and_store_flights(db: Session):
     updated_prices_count = 0
 
     for departure_airport, arrival_airport in dynamic_routes:
-        print(f"Fetching flights from {departure_airport} to {arrival_airport}...")
+        logger.info(
+            f"Fetching flights from {departure_airport} to {arrival_airport}..."
+        )
 
         flights = get_nouvelair_flight_availability(
             departure_airport, arrival_airport, CURRENCY
@@ -124,7 +131,7 @@ def fetch_and_store_flights(db: Session):
             try:
                 departure_date = datetime.strptime(date_str, "%Y-%m-%d")
             except Exception as e:
-                print(f"Skipping invalid date {date_str}: {e}")
+                logger.warning(f"Skipping invalid date {date_str}: {e}")
                 continue
 
             existing_flight = (
@@ -157,7 +164,7 @@ def fetch_and_store_flights(db: Session):
                 )
                 flight_price_history.create_price_history(db, price_history_data)
 
-                print(
+                logger.info(
                     f"Added new flight on {departure_date} {departure_airport}->{arrival_airport} price: {price} Eur"
                 )
                 new_flights_count += 1
@@ -176,7 +183,7 @@ def fetch_and_store_flights(db: Session):
                     )
                     flight_price_history.create_price_history(db, price_history_data)
 
-                    print(
+                    logger.info(
                         f"Updated price for flight on {departure_date} {departure_airport}->{arrival_airport} from {old_price} to {price} Eur"
                     )
                     processed_flights_info.append(
@@ -184,20 +191,7 @@ def fetch_and_store_flights(db: Session):
                     )
                     updated_prices_count += 1
 
-    print(
-        f"\nSummary: {new_flights_count} new flights added, {updated_prices_count} prices updated.\n"
+    logger.info(
+        f"{new_flights_count} new flights added, {updated_prices_count} prices updated."
     )
     return processed_flights_info
-
-
-# Example of how you would run this (e.g., from a management script or a Fastapi background task)
-# if __name__ == "__main__":
-#     from app.db.session import SessionLocal # Import SessionLocal here
-#     db = SessionLocal()
-#     try:
-#         print("Starting flight data fetch...")
-#         fetched_data = fetch_and_store_flights(db)
-#         print("Flight data fetch completed.")
-#         # You can then use fetched_data to trigger alerts if this script is also part of your alert mechanism
-#     finally:
-#         db.close()

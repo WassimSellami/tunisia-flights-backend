@@ -1,20 +1,30 @@
-from sqlalchemy.orm import Session
-from app.crud import subscription as crud_subscription, flight
-from app.db import schemas, models
-import smtplib
+import os
+import platform
+import logging
 from datetime import datetime
 from email.message import EmailMessage
-import os
+import smtplib
+from sqlalchemy.orm import Session
 from dotenv import load_dotenv
-import platform
 
+from app.crud import subscription as crud_subscription, flight
+from app.db import schemas
 from app.services import booking_url_service
 
-from app.db.session import SessionLocal
-
 load_dotenv()
-EMAIL_USER = os.getenv("EMAIL_USER", "wrongEmail")
-EMAIL_PASS = os.getenv("EMAIL_PASS", "wrongPassword")
+
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASS = os.getenv("EMAIL_PASS")
+
+if not EMAIL_USER or not EMAIL_PASS:
+    raise ValueError("EMAIL_USER and EMAIL_PASS must be set in environment variables")
+
+logger = logging.getLogger("flight_alerts")
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 def send_price_alert_email(
@@ -31,7 +41,7 @@ def send_price_alert_email(
                 f"{day_format} %b %Y"
             )
     except Exception as e:
-        print(f"⚠️ Failed to parse departure date: {e}")
+        logger.warning(f"Failed to parse departure date: {e}")
         departure_date = raw_date
 
     booking_url = flight_details.get("bookingUrl")
@@ -78,35 +88,36 @@ def send_price_alert_email(
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-            smtp.login(EMAIL_USER, EMAIL_PASS)
+            smtp.login(EMAIL_USER, EMAIL_PASS)  # type: ignore
             smtp.send_message(msg)
-            print(f"✅ Email sent to {to_email}")
+        logger.info(f"Email sent to {to_email}")
     except Exception as e:
-        print(f"❌ Failed to send email to {to_email}: {e}")
+        logger.error(f"Failed to send email to {to_email}: {e}")
 
 
 def check_and_send_alerts_for_flights(db: Session, updated_flights_info: list):
     if not updated_flights_info:
         return
-    print("🔎 Checking subscriptions for recently updated flights...")
+    logger.info("Checking subscriptions for recently updated flights...")
     for item in updated_flights_info:
         db_flight = item["flight"]
-        old_price = item["old_price"]
+        old_price = item.get("old_price")
 
         if old_price is None:
             continue
 
-        subscriptions_for_this_flight = crud_subscription.get_active_subscriptions_for_flight_with_notifications_enabled(
+        subscriptions = crud_subscription.get_active_subscriptions_for_flight_with_notifications_enabled(
             db, db_flight.id
         )
 
         booking_url = booking_url_service.generate_nouvelair_booking_url(db_flight)
 
-        for sub in subscriptions_for_this_flight:
-            target_price = sub.targetPrice
-            updated_price = db_flight.price
+        for sub in subscriptions:
+            target_price = sub.targetPrice  # type: ignore
+            updated_price = db_flight.price  # type: ignore
+
             if (old_price > target_price) and (updated_price <= target_price):
-                print(f"🚨 ALERT TRIGGERED for {sub.email} on Flight {db_flight.id}!")
+                logger.info(f"ALERT TRIGGERED for {sub.email} on Flight {db_flight.id}")
                 send_price_alert_email(
                     to_email=sub.email,  # type: ignore
                     flight_details={
@@ -121,21 +132,9 @@ def check_and_send_alerts_for_flights(db: Session, updated_flights_info: list):
 
                 sub_update_schema = schemas.SubscriptionUpdate(isActive=False)
                 crud_subscription.update_subscription(db, sub.id, sub_update_schema)  # type: ignore
-                print(f"    Subscription {sub.id} set to inactive after alert.")
+                logger.info(f"Subscription {sub.id} set to inactive after alert.")
             else:
-                print(
-                    f"  Subscription {sub.id} for {sub.email} (Target: {target_price}€, Prev: {old_price}€, New: {updated_price}€) - No alert needed for drop."
+                logger.debug(
+                    f"Subscription {sub.id} for {sub.email} (Target: {target_price}€, Prev: {old_price}€, New: {updated_price}€) - No alert needed."
                 )
-    print("✅ Finished checking subscriptions for updated flights.")
-
-
-if __name__ == "__main__":
-    db = SessionLocal()
-    try:
-        my_flight = flight.get_flight(db, 50)
-        test_old_price = my_flight.price + 50  # type: ignore
-        check_and_send_alerts_for_flights(
-            db, [{"flight": my_flight, "old_price": test_old_price}]
-        )
-    finally:
-        db.close()
+    logger.info("Finished checking subscriptions for updated flights.")
