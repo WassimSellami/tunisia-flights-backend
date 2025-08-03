@@ -40,7 +40,7 @@ def scheduled_job():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scheduler.add_job(scheduled_job, "cron", minute=8)
+    scheduler.add_job(scheduled_job, "cron", minute=10)
     scheduler.start()
     logger.info("✅ Scheduler started.")
     yield
