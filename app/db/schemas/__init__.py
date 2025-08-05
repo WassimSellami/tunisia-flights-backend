@@ -3,6 +3,7 @@ from .airport import AirportOut
 from .flight import FlightCreate
 from .flight import FlightUpdate
 from .flight import FlightOut
+from .flight import ScrapedDataPayload
 from .flight_price_history import FlightMinMaxPrice
 from .flight_price_history import FlightPriceHistoryCreate
 from .flight_price_history import FlightPriceHistoryOut
