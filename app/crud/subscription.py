@@ -70,6 +70,7 @@ def update_subscription(
     db_subscription = get_subscription(db, subscription_id)
     if not db_subscription:
         return None
+    
     update_data = subscription_update.model_dump(exclude_unset=True)
 
     if (
@@ -81,7 +82,7 @@ def update_subscription(
         db_subscription.isActive = update_data["isActive"]
 
     for key, value in update_data.items():
-        if key not in ["isActive"]:
+        if key != "isActive":
             setattr(db_subscription, key, value)
 
     db.commit()
