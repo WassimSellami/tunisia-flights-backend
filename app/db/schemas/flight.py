@@ -17,17 +17,21 @@ class FlightCreate(FlightBase):
 
 
 class FlightUpdate(BaseModel):
-    departureDate: datetime | None = None
-    price: float | None = None
-    priceEur: float | None = None
-    departureAirportCode: str | None = None
-    arrivalAirportCode: str | None = None
-    airlineCode: str | None = None
+    departureDate: Optional[datetime] = None
+    price: Optional[float] = None
+    priceEur: Optional[float] = None
+    departureAirportCode: Optional[str] = None
+    arrivalAirportCode: Optional[str] = None
+    airlineCode: Optional[str] = None
 
 
 class FlightOut(FlightBase):
     id: int
     bookingUrl: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 
 class ScrapedFlight(BaseModel):
     departureDate: datetime

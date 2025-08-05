@@ -40,7 +40,7 @@ def get_flights(
 
 
 def create_flight(db: Session, flight: schemas.FlightCreate) -> models.Flight:
-    db_flight: models.Flight = models.Flight(**flight.dict())
+    db_flight: models.Flight = models.Flight(**flight.model_dump())
     db.add(db_flight)
     db.commit()
     db.refresh(db_flight)
@@ -51,7 +51,7 @@ def update_flight(db: Session, flight_id: int, flight_update: schemas.FlightUpda
     db_flight = get_flight(db, flight_id)
     if not db_flight:
         return None
-    update_data = flight_update.dict(exclude_unset=True)
+    update_data = flight_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_flight, key, value)
     db.commit()
