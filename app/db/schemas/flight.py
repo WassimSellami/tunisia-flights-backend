@@ -5,7 +5,8 @@ from datetime import datetime
 
 class FlightBase(BaseModel):
     departureDate: datetime
-    price: int
+    price: float
+    priceEur: float
     departureAirportCode: str
     arrivalAirportCode: str
     airlineCode: str
@@ -17,7 +18,8 @@ class FlightCreate(FlightBase):
 
 class FlightUpdate(BaseModel):
     departureDate: datetime | None = None
-    price: int | None = None
+    price: float | None = None
+    priceEur: float | None = None
     departureAirportCode: str | None = None
     arrivalAirportCode: str | None = None
     airlineCode: str | None = None

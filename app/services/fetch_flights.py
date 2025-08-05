@@ -131,7 +131,11 @@ def fetch_and_store_flights(db: Session):
 
         for f in flights:
             date_str = f.get("date")
-            price = int(f.get("price"))
+            try:
+                price = float(f.get("price"))
+            except (ValueError, TypeError):
+                logger.warning(f"Skipping invalid price value: {f.get('price')}")
+                continue
 
             if price <= 0:
                 continue
@@ -159,6 +163,7 @@ def fetch_and_store_flights(db: Session):
                 flight_data = schemas.FlightCreate(
                     departureDate=departure_date,
                     price=price,
+                    priceEur=price,
                     departureAirportCode=departure_airport,
                     arrivalAirportCode=arrival_airport,
                     airlineCode=AIRLINE_CODE,
@@ -166,33 +171,36 @@ def fetch_and_store_flights(db: Session):
                 db_flight = flight.create_flight(db, flight_data)
 
                 price_history_data = schemas.FlightPriceHistoryCreate(
-                    flightId=db_flight.id,  # type: ignore
+                    flightId=db_flight.id,
                     price=price,
+                    priceEur=price,
                     timestamp=now,
                 )
                 flight_price_history.create_price_history(db, price_history_data)
 
                 logger.info(
-                    f"Added new flight on {departure_date} {departure_airport}->{arrival_airport} price: {price} Eur"
+                    f"Added new flight on {departure_date.date()} {departure_airport}->{arrival_airport} price: {price:.2f} Eur"
                 )
                 new_flights_count += 1
 
             else:
                 old_price = existing_flight.price
-                if old_price != price:  # type: ignore
-                    existing_flight.price = price  # type: ignore
+                if old_price != price:
+                    existing_flight.price = price
+                    existing_flight.priceEur = price
                     db.commit()
                     db.refresh(existing_flight)
 
                     price_history_data = schemas.FlightPriceHistoryCreate(
-                        flightId=existing_flight.id,  # type: ignore
+                        flightId=existing_flight.id,
                         price=price,
+                        priceEur=price,
                         timestamp=now,
                     )
                     flight_price_history.create_price_history(db, price_history_data)
 
                     logger.info(
-                        f"Updated price for flight on {departure_date} {departure_airport}->{arrival_airport} from {old_price} to {price} Eur"
+                        f"Updated price for flight on {departure_date.date()} {departure_airport}->{arrival_airport} from {old_price:.2f} to {price:.2f} Eur"
                     )
                     processed_flights_info.append(
                         {"flight": existing_flight, "old_price": old_price}

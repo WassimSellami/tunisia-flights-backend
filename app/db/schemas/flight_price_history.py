@@ -5,7 +5,8 @@ from datetime import datetime
 
 class FlightPriceHistoryBase(BaseModel):
     flightId: int
-    price: int
+    price: float
+    priceEur: float
     timestamp: datetime
 
     class Config:
@@ -21,6 +22,6 @@ class FlightPriceHistoryOut(FlightPriceHistoryBase):
 
 
 class FlightMinMaxPrice(BaseModel):
-    minPrice: Optional[int] = None
-    maxPrice: Optional[int] = None
+    minPrice: Optional[float] = None
+    maxPrice: Optional[float] = None
     flightId: int

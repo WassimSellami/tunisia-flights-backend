@@ -5,7 +5,7 @@ from typing import Optional
 class SubscriptionBase(BaseModel):
     flightId: int
     email: EmailStr
-    targetPrice: int
+    targetPrice: float
 
     class Config:
         from_attributes = True
@@ -18,7 +18,7 @@ class SubscriptionCreate(SubscriptionBase):
 class SubscriptionUpdate(BaseModel):
     flightId: Optional[int] = None
     email: Optional[EmailStr] = None
-    targetPrice: Optional[int] = None
+    targetPrice: Optional[float] = None
     isActive: Optional[bool] = None
     enableEmailNotifications: Optional[bool] = None
 
