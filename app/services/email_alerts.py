@@ -7,7 +7,7 @@ import smtplib
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
-from app.crud import subscription as crud_subscription, flight
+from app.crud import subscription as crud_subscription
 from app.db import schemas
 from app.services import booking_url_service
 
@@ -42,7 +42,7 @@ def send_price_alert_email(
             departure_date = datetime.fromisoformat(str(raw_date)).strftime(date_format)
     except Exception as e:
         logger.warning(f"Failed to parse departure date: {e}")
-        departure_date = raw_date
+        departure_date = str(raw_date)
 
     booking_url = flight_details.get("bookingUrl")
 
@@ -61,8 +61,8 @@ def send_price_alert_email(
         <p>
             <strong>🛫 Flight:</strong> {flight_details.get('originAirportCode')} ➡️ {flight_details.get('arrivalAirportCode')}<br>
             <strong>📅 Departure Date:</strong> {departure_date}<br>
-            <strong>🎯 Your Target Price:</strong> {target_price}€<br>
-            <strong>💰 Current Price:</strong> {current_price}€
+            <strong>🎯 Your Target Price:</strong> {target_price:.2f}€<br>
+            <strong>💰 Current Price:</strong> {current_price:.2f}€
         </p>
         {link_html}
         <p><i>Note: You will no longer receive alerts for this flight unless you reactivate it.</i></p>
@@ -80,8 +80,8 @@ def send_price_alert_email(
         f"The flight you were watching has dropped below your target price.\n\n"
         f"🛫 Flight: {flight_details.get('originAirportCode')} ➡ {flight_details.get('arrivalAirportCode')}\n"
         f"📅 Departure Date: {departure_date}\n"
-        f"🎯 Your Target Price: {target_price}€\n"
-        f"💰 Current Price: {current_price}€\n"
+        f"🎯 Your Target Price: {target_price:.2f}€\n"
+        f"💰 Current Price: {current_price:.2f}€\n"
         f"{plain_text_book_now_link}"
         f"📩 Note: You will no longer receive alerts for this flight unless you reactivate it.\n\n"
         f"Happy travels! 🧳\n"
@@ -109,9 +109,9 @@ def check_and_send_alerts_for_flights(db: Session, updated_flights_info: list):
     logger.info("Checking subscriptions for recently updated flights...")
     for item in updated_flights_info:
         db_flight = item["flight"]
-        old_price = item.get("old_price")
+        old_price_eur = item.get("old_price_eur")
 
-        if old_price is None:
+        if old_price_eur is None:
             continue
 
         subscriptions = crud_subscription.get_active_subscriptions_for_flight_with_notifications_enabled(
@@ -122,9 +122,9 @@ def check_and_send_alerts_for_flights(db: Session, updated_flights_info: list):
 
         for sub in subscriptions:
             target_price = sub.targetPrice
-            updated_price = db_flight.price
+            updated_price_eur = db_flight.priceEur
 
-            if (old_price > target_price) and (updated_price <= target_price):
+            if (old_price_eur > target_price) and (updated_price_eur <= target_price):
                 logger.info(f"ALERT TRIGGERED for {sub.email} on Flight {db_flight.id}")
                 send_price_alert_email(
                     to_email=sub.email,
@@ -135,7 +135,7 @@ def check_and_send_alerts_for_flights(db: Session, updated_flights_info: list):
                         "bookingUrl": booking_url,
                     },
                     target_price=target_price,
-                    current_price=updated_price,
+                    current_price=updated_price_eur,
                 )
 
                 sub_update_schema = schemas.SubscriptionUpdate(isActive=False)
@@ -143,6 +143,6 @@ def check_and_send_alerts_for_flights(db: Session, updated_flights_info: list):
                 logger.info(f"Subscription {sub.id} set to inactive after alert.")
             else:
                 logger.debug(
-                    f"Subscription {sub.id} for {sub.email} (Target: {target_price}€, Prev: {old_price}€, New: {updated_price}€) - No alert needed."
+                    f"Subscription {sub.id} for {sub.email} (Target: {target_price:.2f}€, Prev: {old_price_eur:.2f}€, New: {updated_price_eur:.2f}€) - No alert needed."
                 )
     logger.info("Finished checking subscriptions for updated flights.")
