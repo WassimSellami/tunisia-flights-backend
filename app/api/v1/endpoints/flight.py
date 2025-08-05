@@ -7,6 +7,9 @@ from app.db import schemas, models
 from app.crud import flight
 from app.db.session import SessionLocal
 from app.services import booking_url_service
+from app.services import fetch_flights as scraped_data_service
+from app.services import email_alerts
+
 
 router = APIRouter(prefix="/flights", tags=["flights"])
 
@@ -79,3 +82,23 @@ def delete_flight(flight_id: int, db: Session = Depends(get_db)):
     if not deleted:
         raise HTTPException(status_code=404, detail="Flight not found")
     return deleted
+
+
+@router.post("/report-scraped-data", status_code=202) # 202 Accepted
+def report_scraped_data(
+    payload: schemas.ScrapedDataPayload,
+    db: Session = Depends(get_db)
+):
+    """
+    Receives a batch of scraped flight data from a scraper service.
+    This endpoint processes the data, updates the database, and triggers alerts.
+    """
+    updated_flights = scraped_data_service.process_scraped_flights(db, payload)
+    
+    if updated_flights:
+        # logger.info(f"Triggering price alerts for {len(updated_flights)} flights.")
+        email_alerts.check_and_send_alerts_for_flights(db, updated_flights)
+    
+    return {
+        "message": "Scraped data report accepted for processing."
+    }

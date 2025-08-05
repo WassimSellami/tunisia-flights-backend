@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -28,6 +28,17 @@ class FlightUpdate(BaseModel):
 class FlightOut(FlightBase):
     id: int
     bookingUrl: Optional[str] = None
+
+class ScrapedFlight(BaseModel):
+    departureDate: datetime
+    price: float
+    priceEur: float
+    departureAirportCode: str
+    arrivalAirportCode: str
+    airlineCode: str
+
+class ScrapedDataPayload(BaseModel):
+    flights: List[ScrapedFlight]
 
     class Config:
         from_attributes = True
