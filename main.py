@@ -1,6 +1,5 @@
 import os
 import logging
-from sqlalchemy import text
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,39 +11,20 @@ from app.api.v1.endpoints import (
     airport,
     user,
 )
-from apscheduler.schedulers.background import BackgroundScheduler
-from app.services.fetch_flights import fetch_and_store_flights
-from app.services.email_alerts import check_and_send_alerts_for_flights
-from app.db.session import SessionLocal
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-scheduler = BackgroundScheduler()
-
-
-def scheduled_job():
-    db = SessionLocal()
-    try:
-        db.execute(text("SELECT 1"))
-        logger.info("🚀 Running scheduled flight fetch job...")
-        updateFlights = fetch_and_store_flights(db)
-        logger.info("✅ Flight fetch complete.")
-        check_and_send_alerts_for_flights(db, updateFlights)
-    except Exception as e:
-        logger.error(f"❌ Scheduled job failed: {e}")
-    finally:
-        db.close()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scheduler.add_job(scheduled_job, "cron", minute=16)
-    scheduler.start()
-    logger.info("✅ Scheduler started.")
+    """
+    Handles application startup and shutdown events.
+    The scheduler has been removed as scraping is now handled by an external service.
+    """
+    logger.info("✅ Main backend service starting up...")
     yield
-    scheduler.shutdown()
-    logger.info("🛑 Scheduler shut down.")
+    logger.info("🛑 Main backend service shutting down.")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -53,7 +33,7 @@ origins = os.getenv("CORS_ORIGINS", "").split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], #change later
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,7 +42,7 @@ app.add_middleware(
 
 @app.get("/ping")
 async def ping():
-    return {"pong"}
+    return {"status": "alive"}
 
 
 app.include_router(user.router)
