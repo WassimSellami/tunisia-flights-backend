@@ -1,5 +1,3 @@
-FROM mcr.microsoft.com/playwright/python:latest
-
 WORKDIR /app
 
 COPY requirements.txt .
