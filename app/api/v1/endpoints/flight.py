@@ -24,7 +24,7 @@ def get_db():
 
 def add_booking_url_to_flight(db_flight: models.Flight) -> schemas.FlightOut:
     flight_out = schemas.FlightOut.model_validate(db_flight)
-    flight_out.bookingUrl = booking_url_service.generate_nouvelair_booking_url(
+    flight_out.bookingUrl = booking_url_service.generate_booking_url(
         db_flight
     )
     return flight_out
