@@ -43,7 +43,7 @@ def generate_tunisair_booking_url(flight: models.Flight) -> str | None:
         "babies": 0,
         "promotion_code": "",
         "source": "DESKTOP",
-        "currency": "",
+        "currency": 3,
         "ibe_configuration": "booking",
     }
 
