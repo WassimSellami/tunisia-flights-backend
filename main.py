@@ -7,10 +7,12 @@ from app.api.v1.endpoints import (
     airline,
     flight,
     flight_price_history,
+    scraper,
     subscription,
     airport,
     user,
 )
+from apscheduler.schedulers.background import BackgroundScheduler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,10 +20,6 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Handles application startup and shutdown events.
-    The scheduler has been removed as scraping is now handled by an external service.
-    """
     logger.info("✅ Main backend service starting up...")
     yield
     logger.info("🛑 Main backend service shutting down.")
@@ -46,8 +44,14 @@ async def ping():
 
 
 app.include_router(user.router)
+app.include_router(scraper.router)
 app.include_router(airline.router)
 app.include_router(flight.router)
 app.include_router(flight_price_history.router)
 app.include_router(subscription.router)
 app.include_router(airport.router)
+
+
+# scheduler = BackgroundScheduler(timezone="UTC")
+# scheduler.add_job(run_nouvelair_job, "cron", minute="4", args=[db])
+# scheduler.start()

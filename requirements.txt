@@ -9,3 +9,10 @@ playwright==1.46.0
 email-validator
 setuptools
 blinker==1.7.0
+httpx
+beautifulsoup4
+lxml
+python-dateutil==2.9.0.post0
+APScheduler
+email-validator
+requests==2.32.3

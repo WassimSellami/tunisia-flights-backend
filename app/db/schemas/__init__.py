@@ -1,6 +1,7 @@
 from .airport import AirportCreate
 from .airport import AirportOut
 from .flight import FlightCreate
+from .flight import ScrapedFlight
 from .flight import FlightUpdate
 from .flight import FlightOut
 from .flight import ScrapedDataPayload
