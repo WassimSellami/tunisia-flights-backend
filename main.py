@@ -12,9 +12,15 @@ from app.api.v1.endpoints import (
     airport,
     user,
 )
-from apscheduler.schedulers.background import BackgroundScheduler
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 
@@ -50,8 +56,3 @@ app.include_router(flight.router)
 app.include_router(flight_price_history.router)
 app.include_router(subscription.router)
 app.include_router(airport.router)
-
-
-# scheduler = BackgroundScheduler(timezone="UTC")
-# scheduler.add_job(run_nouvelair_job, "cron", minute="4", args=[db])
-# scheduler.start()

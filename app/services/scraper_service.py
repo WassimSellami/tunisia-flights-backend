@@ -368,7 +368,7 @@ async def run_tunisair_job(db: Session):
 
     async with httpx.AsyncClient() as session:
         logger.info(
-            "--- Scraping Tunisair flights from Germany/Belgium to Tunisia (EUR native) ---"
+            "--- Scraping Tunisair flights from Germany to Tunisia (EUR native) ---"
         )
         for dep, arr in TUNISAIR_VALID_ROUTES_DE_TO_TN:
             all_scraped_flights.extend(
@@ -376,7 +376,7 @@ async def run_tunisair_job(db: Session):
             )
 
         logger.info(
-            "--- Scraping Tunisair flights from Tunisia to Germany/Belgium (TND native) ---"
+            "--- Scraping Tunisair flights from Tunisia to Germany (TND native) ---"
         )
         conversion_rate = await _get_tunisair_exchange_rate(session)
         for dep, arr in TUNISAIR_VALID_ROUTES_TN_TO_DE:
