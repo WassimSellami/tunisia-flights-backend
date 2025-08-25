@@ -45,7 +45,11 @@ def read_flights(
 
     return [
         schemas.FlightOut(
-            **schemas.FlightOut.from_orm(flight).dict(),
+            **{
+                k: v
+                for k, v in schemas.FlightOut.from_orm(flight).dict().items()
+                if k not in ("minPrice", "maxPrice", "bookingUrl")
+            },
             minPrice=min_price,
             maxPrice=max_price,
             bookingUrl=add_booking_url_to_flight(flight),
