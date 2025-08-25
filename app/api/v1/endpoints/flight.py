@@ -20,10 +20,9 @@ def get_db():
         db.close()
 
 
-def add_booking_url_to_flight(db_flight: models.Flight) -> schemas.FlightOut:
+def add_booking_url_to_flight(db_flight: models.Flight) -> str | None:
     flight_out = schemas.FlightOut.model_validate(db_flight)
-    flight_out.bookingUrl = booking_url_service.generate_booking_url(db_flight)
-    return flight_out
+    return booking_url_service.generate_booking_url(db_flight)
 
 
 @router.get("/", response_model=List[schemas.FlightOut])
@@ -35,7 +34,7 @@ def read_flights(
     endDate: Optional[date] = Query(None),
     airlineCodes: Optional[List[str]] = Query(None),
 ):
-    db_flights = flight.get_flights(
+    db_flights = flight.get_flights_with_min_max(
         db,
         departure_airport_codes=departureAirportCodes,
         arrival_airport_codes=arrivalAirportCodes,
@@ -44,7 +43,15 @@ def read_flights(
         airline_codes=airlineCodes,
     )
 
-    return [add_booking_url_to_flight(f) for f in db_flights]
+    return [
+        schemas.FlightOut(
+            **schemas.FlightOut.from_orm(flight).dict(),
+            minPrice=min_price,
+            maxPrice=max_price,
+            bookingUrl=add_booking_url_to_flight(flight),
+        )
+        for flight, min_price, max_price in db_flights
+    ]
 
 
 @router.get("/{flight_id}", response_model=schemas.FlightOut)

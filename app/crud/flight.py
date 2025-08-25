@@ -1,8 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import cast, Date
-from typing import List, Optional
-from datetime import date
-
+from sqlalchemy import func
 from app.db import models, schemas
 
 
@@ -10,33 +7,43 @@ def get_flight(db: Session, flight_id: int):
     return db.query(models.Flight).filter(models.Flight.id == flight_id).first()
 
 
-def get_flights(
+from sqlalchemy import func
+
+
+def get_flights_with_min_max(
     db: Session,
-    departure_airport_codes: Optional[List[str]] = None,
-    arrival_airport_codes: Optional[List[str]] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    airline_codes: Optional[List[str]] = None,
+    departure_airport_codes=None,
+    arrival_airport_codes=None,
+    start_date=None,
+    end_date=None,
+    airline_codes=None,
 ):
-    query = db.query(models.Flight)
+    subq = (
+        db.query(
+            models.FlightPriceHistory.flightId.label("flight_id"),
+            func.min(models.FlightPriceHistory.priceEur).label("min_price"),
+            func.max(models.FlightPriceHistory.priceEur).label("max_price"),
+        )
+        .group_by(models.FlightPriceHistory.flightId)
+        .subquery()
+    )
+
+    q = db.query(models.Flight, subq.c.min_price, subq.c.max_price).outerjoin(
+        subq, models.Flight.id == subq.c.flight_id
+    )
 
     if departure_airport_codes:
-        query = query.filter(
-            models.Flight.departureAirportCode.in_(departure_airport_codes)
-        )
+        q = q.filter(models.Flight.departureAirportCode.in_(departure_airport_codes))
     if arrival_airport_codes:
-        query = query.filter(
-            models.Flight.arrivalAirportCode.in_(arrival_airport_codes)
-        )
-    if airline_codes:
-        query = query.filter(models.Flight.airlineCode.in_(airline_codes))
-
+        q = q.filter(models.Flight.arrivalAirportCode.in_(arrival_airport_codes))
     if start_date:
-        query = query.filter(cast(models.Flight.departureDate, Date) >= start_date)
+        q = q.filter(models.Flight.departureDate >= start_date)
     if end_date:
-        query = query.filter(cast(models.Flight.departureDate, Date) <= end_date)
+        q = q.filter(models.Flight.departureDate <= end_date)
+    if airline_codes:
+        q = q.filter(models.Flight.airlineCode.in_(airline_codes))
 
-    return query.all()
+    return q.all()
 
 
 def create_flight(db: Session, flight: schemas.FlightCreate) -> models.Flight:

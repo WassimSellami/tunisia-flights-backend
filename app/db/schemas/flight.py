@@ -28,6 +28,8 @@ class FlightUpdate(BaseModel):
 class FlightOut(FlightBase):
     id: int
     bookingUrl: Optional[str] = None
+    minPrice: Optional[float] = None
+    maxPrice: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -40,6 +42,7 @@ class ScrapedFlight(BaseModel):
     departureAirportCode: str
     arrivalAirportCode: str
     airlineCode: str
+
 
 class ScrapedDataPayload(BaseModel):
     flights: List[ScrapedFlight]
