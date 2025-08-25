@@ -19,9 +19,3 @@ class FlightPriceHistoryCreate(FlightPriceHistoryBase):
 
 class FlightPriceHistoryOut(FlightPriceHistoryBase):
     id: int
-
-
-class FlightMinMaxPrice(BaseModel):
-    minPrice: Optional[float] = None
-    maxPrice: Optional[float] = None
-    flightId: int
